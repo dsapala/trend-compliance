@@ -12,6 +12,7 @@
 (def mac-regex #"(?i)Acct-Session-Id\s\=\s\"(.+)\"")
 (def ip-regex #"(?i)Framed-IP-Address\s\=\s(.+)")
 (def username-regex #"(?i)User-Name\s\=\s\"(.+)\"")
+(def timestamp-regex #"(?i)Timestamp\s\=\s\d+")
 
 (defn create-map
   "parse the list of lists returned from read-csv"
@@ -83,13 +84,15 @@
         date (re-matches date-regex tl)
         mac (re-matches mac-regex tl)
         ip (re-matches ip-regex tl)
-        username (re-matches username-regex tl)]
+        username (re-matches username-regex tl)
+        timestamp (re-matches timestamp-regex tl)]
     (cond
-      (= "" blank) (list :blank)
       (seq date) (list :date date)
       (seq mac) (list :mac (second mac))
       (seq ip) (list :ip (second ip))
-      (seq username) (list :username (second username)))))
+      (seq username) (list :username (second username))
+      (not (nil? timestamp)) (list :timestamp)
+      :else (list))))
 
 (defn create-user-map-from-file [f]
   (with-open [rdr (io/reader f)]
@@ -100,8 +103,8 @@
         (when l
           (let [match (match-line l)]
             (case (first match)
-              :blank (do (swap! user-map assoc (:ip u) u)
-                         (recur (first r) (rest r) {}))
+              :timestamp (do (swap! user-map assoc (:ip u) u)
+                             (recur (first r) (rest r) {}))
               :skip (recur (first r) (rest r) u)
               (recur (first r) (rest r) (merge u (apply hash-map match))))))))))
 
